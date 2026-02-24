@@ -11,6 +11,10 @@ on:
       - "gradle.properties"
       - ".github/workflows/build-apk.yml"
 
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,7 +35,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleDebug -x lint -x test --build-cache --parallel --configuration-cache --daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
