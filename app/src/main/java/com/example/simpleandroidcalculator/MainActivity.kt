@@ -5,10 +5,7 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.util.Locale
-import kotlin.math.ln
-import kotlin.math.log10
 import net.objecthunter.exp4j.ExpressionBuilder
-import net.objecthunter.exp4j.function.Function
 
 class MainActivity : AppCompatActivity() {
     private lateinit var expressionView: TextView
@@ -112,16 +109,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val lnFunction = Function("ln", 1) {
-            ln(it[0])
-        }
-        val logFunction = Function("log", 1) {
-            log10(it[0])
-        }
-
         try {
-            val value = ExpressionBuilder(expression.toString())
-                .functions(lnFunction, logFunction)
+            val normalized = normalizeExpression(expression.toString())
+            val value = ExpressionBuilder(normalized)
                 .build()
                 .evaluate()
 
@@ -138,6 +128,15 @@ class MainActivity : AppCompatActivity() {
                 resultView.text = "Error"
             }
         }
+    }
+
+    private fun normalizeExpression(raw: String): String {
+        // exp4j has built-in log (natural log) and log10. Map UI tokens to them.
+        return raw
+            .replace("ln(", "__LN__(")
+            .replace("log(", "log10(")
+            .replace("__LN__(", "log(")
+            .replace("pi", "PI")
     }
 
     private fun formatNumber(number: Double): String {
