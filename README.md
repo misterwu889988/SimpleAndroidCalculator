@@ -1,7 +1,7 @@
 # SimpleAndroidCalculator
 
 ## 当前状态
-- 项目代码已生成完成。
+- 项目代码已生成完成，已升级为超级计算器 UI。
 - 本机当前缺少 Android 构建工具链（`gradlew`/Gradle 与 Android SDK），所以无法在此终端直接产出 APK。
 
 ## 一步生成 APK（不装 Android Studio）
@@ -27,5 +27,11 @@
 - 加减乘除
 - 小数点
 - 百分比
-- 正负号
-- AC 清空
+- 幂运算 `^`
+- 括号表达式
+- `sin` `cos` `tan`
+- `ln` `log`
+- `sqrt`
+- 常量 `pi` `e`
+- `DEL` 删除与 `AC` 清空
+- 自定义应用图标（启动器图标）

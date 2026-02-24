@@ -1,4 +1,5 @@
 <resources>
     <color name="orange">#FF9500</color>
     <color name="key_bg">#E5E8EC</color>
+    <color name="launcher_bg">#1F3D7A</color>
 </resources>

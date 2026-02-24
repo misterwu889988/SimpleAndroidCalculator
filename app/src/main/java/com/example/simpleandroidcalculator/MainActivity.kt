@@ -4,23 +4,24 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import java.util.Locale
+import kotlin.math.ln
+import kotlin.math.log10
+import net.objecthunter.exp4j.ExpressionBuilder
+import net.objecthunter.exp4j.function.Function
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var display: TextView
+    private lateinit var expressionView: TextView
+    private lateinit var resultView: TextView
 
-    private var firstNumber: Double? = null
-    private var pendingOperation: Operation? = null
-    private var isTypingNewNumber = true
-
-    private enum class Operation {
-        ADD, SUBTRACT, MULTIPLY, DIVIDE
-    }
+    private val expression = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        display = findViewById(R.id.display)
+        expressionView = findViewById(R.id.expressionView)
+        resultView = findViewById(R.id.resultView)
 
         bindDigit(R.id.btn0, "0")
         bindDigit(R.id.btn1, "1")
@@ -33,104 +34,118 @@ class MainActivity : AppCompatActivity() {
         bindDigit(R.id.btn8, "8")
         bindDigit(R.id.btn9, "9")
 
-        findViewById<Button>(R.id.btnDot).setOnClickListener { appendDot() }
+        bindToken(R.id.btnDot, ".")
+        bindToken(R.id.btnAdd, "+")
+        bindToken(R.id.btnSubtract, "-")
+        bindToken(R.id.btnMultiply, "*")
+        bindToken(R.id.btnDivide, "/")
+        bindToken(R.id.btnPower, "^")
+        bindToken(R.id.btnLeftParen, "(")
+        bindToken(R.id.btnRightParen, ")")
+        bindToken(R.id.btnPi, "pi")
+        bindToken(R.id.btnE, "e")
+
+        findViewById<Button>(R.id.btnSin).setOnClickListener { appendFunction("sin") }
+        findViewById<Button>(R.id.btnCos).setOnClickListener { appendFunction("cos") }
+        findViewById<Button>(R.id.btnTan).setOnClickListener { appendFunction("tan") }
+        findViewById<Button>(R.id.btnLn).setOnClickListener { appendFunction("ln") }
+        findViewById<Button>(R.id.btnLog).setOnClickListener { appendFunction("log") }
+        findViewById<Button>(R.id.btnSqrt).setOnClickListener { appendFunction("sqrt") }
+
+        findViewById<Button>(R.id.btnPercent).setOnClickListener { appendPercent() }
+        findViewById<Button>(R.id.btnDelete).setOnClickListener { deleteLast() }
         findViewById<Button>(R.id.btnClear).setOnClickListener { clearAll() }
-        findViewById<Button>(R.id.btnSign).setOnClickListener { toggleSign() }
-        findViewById<Button>(R.id.btnPercent).setOnClickListener { percent() }
-        findViewById<Button>(R.id.btnAdd).setOnClickListener { setOperation(Operation.ADD) }
-        findViewById<Button>(R.id.btnSubtract).setOnClickListener { setOperation(Operation.SUBTRACT) }
-        findViewById<Button>(R.id.btnMultiply).setOnClickListener { setOperation(Operation.MULTIPLY) }
-        findViewById<Button>(R.id.btnDivide).setOnClickListener { setOperation(Operation.DIVIDE) }
-        findViewById<Button>(R.id.btnEqual).setOnClickListener { calculateResult() }
+        findViewById<Button>(R.id.btnEqual).setOnClickListener { evaluateExpression(showFinal = true) }
     }
 
     private fun bindDigit(buttonId: Int, digit: String) {
-        findViewById<Button>(buttonId).setOnClickListener { appendDigit(digit) }
+        findViewById<Button>(buttonId).setOnClickListener {
+            appendToken(digit)
+        }
+    }
+
+    private fun bindToken(buttonId: Int, token: String) {
+        findViewById<Button>(buttonId).setOnClickListener {
+            appendToken(token)
+        }
+    }
+
+    private fun appendFunction(name: String) {
+        appendToken("$name(")
+    }
+
+    private fun appendPercent() {
+        appendToken("/100")
+    }
+
+    private fun appendToken(token: String) {
+        expression.append(token)
+        refreshDisplay()
+        evaluateExpression(showFinal = false)
+    }
+
+    private fun deleteLast() {
+        if (expression.isNotEmpty()) {
+            expression.deleteCharAt(expression.lastIndex)
+            refreshDisplay()
+            if (expression.isEmpty()) {
+                resultView.text = "0"
+            } else {
+                evaluateExpression(showFinal = false)
+            }
+        }
     }
 
     private fun clearAll() {
-        display.text = "0"
-        firstNumber = null
-        pendingOperation = null
-        isTypingNewNumber = true
+        expression.clear()
+        expressionView.text = ""
+        resultView.text = "0"
     }
 
-    private fun appendDigit(digit: String) {
-        val current = display.text.toString()
-        display.text = if (isTypingNewNumber || current == "0") {
-            isTypingNewNumber = false
-            digit
-        } else {
-            current + digit
-        }
+    private fun refreshDisplay() {
+        expressionView.text = expression.toString()
     }
 
-    private fun appendDot() {
-        val current = display.text.toString()
-        if (isTypingNewNumber) {
-            display.text = "0."
-            isTypingNewNumber = false
+    private fun evaluateExpression(showFinal: Boolean) {
+        if (expression.isEmpty()) {
+            resultView.text = "0"
             return
         }
-        if (!current.contains('.')) {
-            display.text = "$current."
+
+        val lnFunction = Function("ln", 1) {
+            ln(it[0])
         }
-    }
-
-    private fun toggleSign() {
-        val value = display.text.toString().toDoubleOrNull() ?: return
-        display.text = formatNumber(-value)
-    }
-
-    private fun percent() {
-        val value = display.text.toString().toDoubleOrNull() ?: return
-        display.text = formatNumber(value / 100)
-    }
-
-    private fun setOperation(operation: Operation) {
-        if (firstNumber == null) {
-            firstNumber = display.text.toString().toDoubleOrNull()
-        } else if (!isTypingNewNumber) {
-            calculateResult()
-            firstNumber = display.text.toString().toDoubleOrNull()
+        val logFunction = Function("log", 1) {
+            log10(it[0])
         }
 
-        pendingOperation = operation
-        isTypingNewNumber = true
-    }
+        try {
+            val value = ExpressionBuilder(expression.toString())
+                .functions(lnFunction, logFunction)
+                .build()
+                .evaluate()
 
-    private fun calculateResult() {
-        val operation = pendingOperation ?: return
-        val first = firstNumber ?: return
-        val second = display.text.toString().toDoubleOrNull() ?: return
-
-        val result = when (operation) {
-            Operation.ADD -> first + second
-            Operation.SUBTRACT -> first - second
-            Operation.MULTIPLY -> first * second
-            Operation.DIVIDE -> {
-                if (second == 0.0) {
-                    display.text = "Error"
-                    firstNumber = null
-                    pendingOperation = null
-                    isTypingNewNumber = true
-                    return
-                }
-                first / second
+            val formatted = formatNumber(value)
+            resultView.text = formatted
+            if (showFinal) {
+                if (formatted == "Error") return
+                expression.clear()
+                expression.append(formatted)
+                refreshDisplay()
+            }
+        } catch (_: Exception) {
+            if (showFinal) {
+                resultView.text = "Error"
             }
         }
-
-        display.text = formatNumber(result)
-        firstNumber = null
-        pendingOperation = null
-        isTypingNewNumber = true
     }
 
     private fun formatNumber(number: Double): String {
+        if (!number.isFinite()) return "Error"
         return if (number % 1.0 == 0.0) {
             number.toLong().toString()
         } else {
-            number.toString()
+            String.format(Locale.US, "%.10f", number).trimEnd('0').trimEnd('.')
         }
     }
 }
